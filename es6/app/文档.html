@@ -1,0 +1,225 @@
+注意 事项
+1.es6下创建三个目录
+app
+server
+tasks
+
+2.在 app下 创建
+css
+js
+views
+
+3.进入app/js目录
+创建index.js（js入口文件）
+4.进入app/views
+创建(注：ejs是一个模板引擎，在node中需要启动)
+error.ejs
+index.ejs
+
+5.进入到 es6/server/
+使用node的脚手架
+启动脚手架 表示启用ejs模板引擎
+express -e .
+执行npm install
+
+6.进入到es6/tasks
+创建util（防止一些常用的脚本的）
+初始化 tasks/util/args.js
+
+7.在项目根目录
+使用npm init (创建 package.json 依赖包文件（配置依赖）)
+
+8.创建设置babel 编译工具配置文件
+ es6/.babelrc
+
+9.创建gulp的构建文件
+es6/gulpfile.babel.js
+
+
+10.编辑 tasks/util/args.js
+
+                    import yargs from 'yargs';
+
+                    const args = yargs
+//区分开发环境或者线上环境（gulp -production）
+                    .option('production',{
+                    boolean:true,
+                    default:false,
+                    describe:'min all scripts'
+                    })
+//设置要不要自动编译
+                    .option('watch',{
+                    boolean:true,
+                    default:false,
+                    describe:'watch all files'
+                    })
+//设置是否需要输出编译日志
+                    .option('verbose',{
+                    boolean:true,
+                    default:false,
+                    describe:'log'
+                    })
+//处理压缩的
+                    .option('sourcemaps',{
+                    describe:'force the creation of sroucemaps'
+                    })
+//设置服务的端口
+                    .option('port',{
+                    string:true,
+                    default:8080,
+                    describe:'server port'
+                    })
+//表示名两行输入的上述内容以字符串进行解析
+                    .argv
+
+                    export default args;
+
+11.创建构建脚本tasks/scripts.js
+
+                    import gulp from 'gulp';//引入gup
+                    import gulpif from 'gulp-if';//gulp的语句中处理if判断的包
+                    import concat from 'gulp-concat';//处理文件拼接的
+                    import webpack from 'webpack';//打包的
+                    import gulpWebpack from 'webpack-stream';//和webpack配合使用的
+                    import named from 'vinyl-named';//对文件重命名处理包
+                    import livereload from 'gulp-livereload';//热更新包即浏览器不刷新自动更新的
+                    import plumber from 'gulp-plumber';//处理文件信息流的包
+                    import rename from 'gulp-rename';//对文件重命名的包
+                    import uglify from 'gulp-uglify';//处理js css 压缩的包
+                    import {log,colors} from 'gulp-util';//命令行输出的包
+                    import args from './util/args';//命令行参数进行解析的包
+
+进入es6/
+安装scripts.js 中的依赖包用空格隔开
+npm install gulp gulp-if gulp-concat webpack webpack-stream vinyl-named gulp-livereload gulp-plumber gulp-rename gulp-uglify gulp-util yargs --save-dev
+gulp-live-server gulp-util del gulp-sequence --save-dev(表示安装后写入package.js配置)
+
+12.创建处理模板的脚本
+                    tasks/pages.js
+                    import gulp from 'gulp';
+                    import gulpif from 'gulp-if';
+                    import livereload from 'gulp-livereload';
+                    import args from './util/args';
+
+
+                    //创建一个pages任务
+                    gulp.task('pages',()=>{
+                    return gulp.src('app/**/*.ejs')//表示app嵌套目录下所有模板
+                    .pipe(gulp.dest('server'))//把末班文件原封不动的copy到server目录下
+                    .pipe(gulpif(args.watch,livereload()))//监听是不是热更新
+                    })
+13.
+创建处理css的脚本
+                    import gulp from 'gulp';
+                    import gulpif from 'gulp-if';
+                    import livereload from 'gulp-livereload';
+                    import args from './util/args';
+
+                    gulp.task('css',()=>{
+                    return gulp.src('app/**/*.css')
+                    .pipe(gulp.dest('server/public'))//把末班文件原封不动的copy到server/public目录下
+
+                    })
+
+
+14.创建处理服务器的构建脚本tasks/server.js
+                import gulp from 'gulp';
+                import gulpif from 'gulp-if';
+                import liveserver from 'gulp-live-server';
+                import args from './util/args';
+//创建服务的任务
+                gulp.task('serve',(cb)=>{//如果不是监听的使用回调函数
+                if(!args.watch) return cb();
+//如果是监听的创建一个服务器，运行server/bin/www.js
+                var server = liveserver.new(['--harmony','server/bin/www']);
+                server.start();//启动服务器
+//监听server/public/js  /css
+                gulp.watch(['server/public/**/*.js','server/views/**/*.ejs'],function(file){
+                server.notify.apply(server,[file]);//通知服务器做相应的反应
+                })
+//监听到路由变化后是服务重启
+                gulp.watch(['server/routes/**/*.js','server/app.js'],function(){
+                server.start.bind(server)()
+                });
+                })
+
+15.创建浏览器监听并自动编译的脚本tasks/browser.js
+                    import gulp from 'gulp';
+                    import gulpif from 'gulp-if';
+                    import gutil from 'gulp-util';
+                    import args from './util/args';
+//创建任务
+                    gulp.task('browser',(cb)=>{
+                    if(!args.watch) return cb();
+                    gulp.watch('app/**/*.js',['scripts']);//监听js 启动scripts.js
+                    gulp.watch('app/**/*.ejs',['pages']);...
+                    gulp.watch('app/**/*.css',['css']);...
+                    });
+16.创建编译文件清除的脚本（当每次文件修改时进行旧的文件清除）
+                import gulp from 'gulp';
+                import del from 'del';
+                import args from './util/args';
+    //创建晴空任务
+                gulp.task('clean',()=>{
+                return del(['server/public','server/views'])
+                })
+
+17.创建任务关联起来的脚本tasks/build.js
+                import gulp from 'gulp';
+                import gulpSequence from 'gulp-sequence';//任务之间的关联关系
+
+                gulp.task('build',gulpSequence('clean','css','pages','scripts',['browser','serve']));
+
+18.创建 tasks default.js
+
+        import gulp from 'gulp';
+
+        gulp.task('default',['build']);
+
+19.运行处理
+报错
+[18:10:18] Failed to load external module babel-register
+[18:10:18] Failed to load external module babel-core/register
+[18:10:18] Failed to load external module babel/register
+[18:10:18] Using gulpfile D:\wnmp\www\es6\gulpfile.babel.js
+[18:10:19] Task 'default' is not in your gulpfile
+[18:10:19] Please check the documentation for proper gulpfile formatting
+
+解决前三个是安装包没有安装
+解决安装
+babel-loader babel-core babel-preset-env webpack
+
+后一个是没有发现gulpfile文件，创建的是gulpfile.babel.js
+解决
+在 es6/gulpfile.babel.js下写入并安装require-dir包
+import requireDir from 'require-dir';
+
+requireDir('./tasks');
+
+配置 .babelrc 如下 同时安装依赖包 babel-preset-es2015
+{
+"presets":["es2015"]
+}
+
+报错
+安装依赖包
+gulp-sequence
+
+
+运行 gulp --watch 自动编译
+实现热更新大概23行
+app.use(express.static(path.join(__dirname, 'public')));后
+app.use(require('connect-livereload')());
+ctrl+c停止服务
+安装依赖
+npm install connect-livereload --save-dev
+
+执行 gulp --watch
+
+
+
+
+
+
+
+
